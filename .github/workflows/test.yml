@@ -1,0 +1,41 @@
+name: Run cppcheck and unint tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+
+  lint:
+    name: cppcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install cppcheck
+        run: |
+            sudo apt update
+            sudo apt install -y cppcheck
+
+      - name: Run cppcheck
+        run: cppcheck --enable=style --error-exitcode=2 --std=c++17 -v celebi
+
+  unint-test:
+    name: Unint Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up C++ env
+      run: |
+          sudo apt update
+          sudo apt install -y g++ cmake
+
+    - name: build and run
+      run: |
+          cmake -B ./build
+          cmake --build ./build --config Debug --target all -j
+          ./build/celebi-tests/celebi-tests
