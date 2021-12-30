@@ -20,7 +20,7 @@ public:
     // Management methods
     static const std::unique_ptr<IDatabase> createEmpty(const std::string &dbName);
     static const std::unique_ptr<IDatabase> load(const std::string &dbName);
-    virtual void destroy() const = 0;
+    virtual void destroy() = 0;
 
     // Set or get methods
     virtual void setKeyValue(const std::string &key, const std::string &value) = 0;
