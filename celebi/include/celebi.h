@@ -16,6 +16,8 @@ public:
     Celebi() = delete;
 
     static const std::unique_ptr<IDatabase> createEmptyDB(const std::string &dbName);
+    static const std::unique_ptr<IDatabase> createEmptyDB(const std::string &dbName,
+                                                          std::unique_ptr<KeyValueStore> &kvStore);
     static const std::unique_ptr<IDatabase> loadDB(const std::string &dbName);
 };
 
