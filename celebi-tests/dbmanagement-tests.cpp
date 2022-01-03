@@ -14,7 +14,8 @@ TEST_CASE("db-create", "[createEmptyDB]") {
     //   [Value] So I can later store and retrieve data
 
     SECTION("Default settings") {
-       std::string dbName = "my-empty-db";
+       auto nowMs = std::chrono::system_clock::now();
+       std::string dbName = "my-empty-db_" + std::to_string(nowMs.time_since_epoch().count());
        std::unique_ptr<celebi::IDatabase> db(celebi::Celebi::createEmptyDB(dbName));
 
        // We know we have been successful when:-
@@ -42,7 +43,8 @@ TEST_CASE("db-load", "[loadDB]") {
     //   [Value] So I can later store and retrieve data
 
     SECTION("Default settings") {
-        std::string dbName = "my-empty-db";
+        auto nowMs = std::chrono::system_clock::now();
+        std::string dbName = "my-empty-db_" + std::to_string(nowMs.time_since_epoch().count());
         std::unique_ptr<celebi::IDatabase> db1(celebi::Celebi::createEmptyDB(dbName));
         std::unique_ptr<celebi::IDatabase> db2(celebi::Celebi::loadDB(dbName));
 
