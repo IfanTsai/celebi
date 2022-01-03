@@ -8,9 +8,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(GNUInstallDirs)
 
-include_directories(./include)
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${celebi-project_SOURCE_DIR}/highwayhash
+)
 
-file(GLOB SRCS ./src/*.*)
+file(GLOB SRCS ./src/*.cpp)
 file(GLOB HEADERS ./include/*.*)
 
 add_library(${PROJECT_NAME} STATIC

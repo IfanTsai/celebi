@@ -1,4 +1,4 @@
-name: Run cppcheck and unint tests
+name: Run cppcheck and unit tests
 
 on:
   push:
@@ -22,12 +22,14 @@ jobs:
       - name: Run cppcheck
         run: cppcheck --enable=style --error-exitcode=2 --std=c++17 -v celebi
 
-  unint-test:
-    name: Unint Test
+  unit-test:
+    name: Unit Test
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
+      with:
+          submodules: true
 
     - name: Set up C++ env
       run: |

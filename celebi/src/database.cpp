@@ -19,12 +19,16 @@ namespace fs = std::filesystem;
 class EmbeddedDatabase::Impl : public IDatabase {
 public:
     Impl(const std::string &dbName, const std::string &fullpath);
+    Impl(const std::string &dbName, const std::string &fullpath,
+         std::unique_ptr<KeyValueStore> &kvStore);
     virtual ~Impl();
 
     virtual const std::string getDirectory() const;
 
     // Management methods
     static const std::unique_ptr<IDatabase> createEmpty(const std::string &dbName);
+    static const std::unique_ptr<IDatabase> createEmpty(const std::string &dbName,
+                                                        std::unique_ptr<KeyValueStore> &kvStore);
     static const std::unique_ptr<IDatabase> load(const std::string &dbName);
     virtual void destroy();
 
@@ -33,58 +37,37 @@ public:
     virtual std::string getKeyValue(const std::string &key);
 
 private:
-    const std::string getFilepathFromKey(const std::string &key);
     const std::string getKeyFromFilename(const std::string &filename);
 
     static const std::string baseDir;
     static const std::string fileExtension;
     std::string m_name;
     std::string m_fullpath;
-    std::unordered_map<std::string, std::string> m_keyValueStore;
+    std::unique_ptr<KeyValueStore> m_keyValueStore;
 };
 
 const std::string EmbeddedDatabase::Impl::baseDir = ".celebi";
 const std::string EmbeddedDatabase::Impl::fileExtension = ".kv";
 
+// Use memory storage and file persistence by default
 EmbeddedDatabase::Impl::Impl(const std::string &dbName, const std::string &fullpath)
     : m_name(dbName), m_fullpath(fullpath)
 {
-    if (!fs::exists(m_fullpath)) {
-        return;
-    }
+    std::unique_ptr<KeyValueStore> fileStore = std::make_unique<FileKeyValueStore>(fullpath);
+    std::unique_ptr<KeyValueStore> memoryStore = std::make_unique<MemoryKeyValueStore>(fileStore);
+    m_keyValueStore = std::move(memoryStore);
+}
 
-    // load files from disk to memory
-    for (auto &p : fs::directory_iterator(m_fullpath)) {
-        if (p.exists() && p.is_regular_file() && p.path().extension() == fileExtension) {
-            // read value from file
-            std::ifstream is(p.path());
-            std::string value;
+// User can specify kv store for database
+EmbeddedDatabase::Impl::Impl(const std::string &dbName, const std::string &fullpath,
+                             std::unique_ptr<KeyValueStore> &kvStore)
+    : m_name(dbName), m_fullpath(fullpath), m_keyValueStore(kvStore.release())
+{
 
-            is.seekg(0, std::ios::end);
-            value.reserve(is.tellg());
-            is.seekg(0, std::ios::beg);
-
-            value.assign(std::istreambuf_iterator<char>(is), std::istreambuf_iterator<char>());
-
-            // insert key-value to unordered map
-            std::string key = getKeyFromFilename(p.path().filename());
-            m_keyValueStore.insert({ key, value });
-        }
-    }
 }
 
 EmbeddedDatabase::Impl::~Impl()
 {
-}
-
-const std::string EmbeddedDatabase::Impl::getFilepathFromKey(const std::string &key)
-{
-    return m_fullpath + "/" + key + fileExtension;
-}
-
-const std::string EmbeddedDatabase::Impl::getKeyFromFilename(const std::string &filename)
-{
-    return filename.substr(0, filename.find_last_of('.'));
 }
 
 // Management methods
@@ -101,6 +84,17 @@ const std::unique_ptr<IDatabase> EmbeddedDatabase::Impl::createEmpty(const std::
     return std::make_unique<EmbeddedDatabase::Impl>(dbName, dbFolder);
 }
 
+const std::unique_ptr<IDatabase> EmbeddedDatabase::Impl::createEmpty(const std::string &dbName,
+                                                                     std::unique_ptr<KeyValueStore> &kvStore)
+{
+    if (!fs::exists(baseDir))
+        fs::create_directory(baseDir);
+
+    std::string dbFolder = baseDir + "/" + dbName;
+
+    return std::make_unique<EmbeddedDatabase::Impl>(dbName, dbFolder, kvStore);
+}
+
 const std::unique_ptr<IDatabase> EmbeddedDatabase::Impl::load(const std::string &dbName)
 {
     std::string baseDir = ".celebi";
@@ -111,10 +105,7 @@ const std::unique_ptr<IDatabase> EmbeddedDatabase::Impl::load(const std::string 
 
 void EmbeddedDatabase::Impl::destroy()
 {
-   if (fs::exists(m_fullpath))
-       fs::remove_all(m_fullpath);
-
-   m_keyValueStore.clear();
+   m_keyValueStore->clear();
 }
 
 const std::string EmbeddedDatabase::Impl::getDirectory() const
@@ -126,38 +117,22 @@ const std::string EmbeddedDatabase::Impl::getDirectory() const
 
 void EmbeddedDatabase::Impl::setKeyValue(const std::string &key, const std::string &value)
 {
-    std::ofstream os(getFilepathFromKey(key), std::ios::out | std::ios::trunc);
-
-    // write value to key file
-    os << value;
-
-    // also wirte key-value to unordered map
-    m_keyValueStore.insert({ key, value });
-
-    // RAII, os.close()
+    m_keyValueStore->setKeyValue(key, value);
 }
 
 std::string EmbeddedDatabase::Impl::getKeyValue(const std::string &key)
 {
     // read value from unordered map
+    /*
     const auto it = m_keyValueStore.find(key);
     if (it == m_keyValueStore.end()) {
         return "";   // TODO: error handling
     }
 
     return it->second;
-#if 0
-    std::ifstream is(getFilepathFromKey(key));
-    std::string value;
+    */
 
-    is.seekg(0, std::ios::end);
-    value.reserve(is.tellg());
-    is.seekg(0, std::ios::beg);
-
-    value.assign(std::istreambuf_iterator<char>(is), std::istreambuf_iterator<char>());
-
-    return value;
-#endif
+    return m_keyValueStore->getKeyValue(key);
 }
 
 
@@ -168,7 +143,14 @@ std::string EmbeddedDatabase::Impl::getKeyValue(const std::string &key)
  */
 
 EmbeddedDatabase::EmbeddedDatabase(const std::string &dbName, const std::string &fullpath)
-    : mImpl(std::make_unique<EmbeddedDatabase::Impl>(Impl(dbName, fullpath)))
+    : m_impl(std::make_unique<EmbeddedDatabase::Impl>(dbName, fullpath))
+{
+
+}
+
+EmbeddedDatabase::EmbeddedDatabase(const std::string &dbName, const std::string &fullpath,
+                                   std::unique_ptr<KeyValueStore> &kvStore)
+    : m_impl(std::make_unique<EmbeddedDatabase::Impl>(dbName, fullpath, kvStore))
 {
 
 }
@@ -184,6 +166,12 @@ const std::unique_ptr<IDatabase> EmbeddedDatabase::createEmpty(const std::string
     return EmbeddedDatabase::Impl::createEmpty(dbName);
 }
 
+const std::unique_ptr<IDatabase> EmbeddedDatabase::createEmpty(const std::string &dbName,
+                                                               std::unique_ptr<KeyValueStore> &kvStore)
+{
+    return EmbeddedDatabase::Impl::createEmpty(dbName, kvStore);
+}
+
 const std::unique_ptr<IDatabase> EmbeddedDatabase::load(const std::string &dbName)
 {
     return EmbeddedDatabase::Impl::load(dbName);
@@ -191,20 +179,20 @@ const std::unique_ptr<IDatabase> EmbeddedDatabase::load(const std::string &dbNam
 
 void EmbeddedDatabase::destroy()
 {
-    mImpl->destroy();
+    m_impl->destroy();
 }
 
 const std::string EmbeddedDatabase::getDirectory() const
 {
-    return mImpl->getDirectory();
+    return m_impl->getDirectory();
 }
 
 void EmbeddedDatabase::setKeyValue(const std::string &key, const std::string &value)
 {
-    mImpl->setKeyValue(key, value);
+    m_impl->setKeyValue(key, value);
 }
 
 std::string EmbeddedDatabase::getKeyValue(const std::string &key)
 {
-    return mImpl->getKeyValue(key);
+    return m_impl->getKeyValue(key);
 }
