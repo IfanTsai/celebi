@@ -17,6 +17,7 @@ add_executable(${PROJECT_NAME}
     dbmanagement-tests.cpp
     keyvalue-tests.cpp
     performance-tests.cpp
+    query-tests.cpp
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE celebi)
