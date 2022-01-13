@@ -69,7 +69,13 @@ int main(int argc, char *argv[])
         std::string value = result["v"].as<std::string>();
         std::string dbName = result["n"].as<std::string>();
         std::unique_ptr<celebi::IDatabase> db(celebi::Celebi::loadDB(dbName));
-        db->setKeyValue(key, value);
+
+        if (result.count("b")) {
+            std::string bucket(result["b"].as<std::string>());
+            db->setKeyValue(key, value, bucket);
+        } else {
+            db->setKeyValue(key, value);
+        }
     } else if (result.count("g")) {
         if (!result.count("n"))
             printUsage("You must specify a database naem with -n <name>", 1);
@@ -82,6 +88,24 @@ int main(int argc, char *argv[])
         std::string dbName = result["n"].as<std::string>();
         std::unique_ptr<celebi::IDatabase> db(celebi::Celebi::loadDB(dbName));
         std::cout << db->getKeyValue(key) << std::endl;
+    } else if (result.count("q")) {
+        if (!result.count("n"))
+            printUsage("You must specify a database naem with -n <name>", 1);
+
+        if (!result.count("b"))
+            printUsage("You must specify a key to set with -b <bucket>", 1);
+
+        std::string dbName = result["n"].as<std::string>();
+        std::unique_ptr<celebi::IDatabase> db(celebi::Celebi::loadDB(dbName));
+        std::string bucket(result["b"].as<std::string>());
+
+        celebi::BucketQuery buckerQuery(bucket);
+        std::unique_ptr<celebi::IQueryResult> res = db->query(buckerQuery);
+
+        std::unique_ptr<std::unordered_set<std::string>> recordKeys = res->recordKeys();
+        //std::cout << recordKeys.get()->size() << std::endl;
+        for (auto it = recordKeys.get()->begin(); it != recordKeys.get()->end(); it++)
+            std::cout << *it << std::endl;
     } else {
         printUsage("No command specified !");
     }

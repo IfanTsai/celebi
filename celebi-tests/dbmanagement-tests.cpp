@@ -26,7 +26,10 @@ TEST_CASE("db-create", "[createEmptyDB]") {
        // C++17 Ref: https://en.cppreference.com/w/cpp/filesystem/is_directory
 
        // 3. The database folder is empty (no database files yet)
-       const auto &p = fs::directory_iterator(db->getDirectory());
+       auto p = fs::directory_iterator(db->getDirectory());
+       REQUIRE(p != end(p)); // .indexes file
+       REQUIRE(p->is_directory());
+       p++;
        REQUIRE(p == end(p));
        // C++17 Ref: https://en.cppreference.com/w/cpp/filesystem/directory_iterator
 
@@ -56,7 +59,10 @@ TEST_CASE("db-load", "[loadDB]") {
         // C++17 Ref: https://en.cppreference.com/w/cpp/filesystem/is_directory
 
         // 3. The database folder is empty (no database files yet)
-        const auto &p = fs::directory_iterator(db2->getDirectory());
+        auto p = fs::directory_iterator(db2->getDirectory());
+        REQUIRE(p != end(p)); // .indexes file
+        REQUIRE(p->is_directory());
+        p++;
         REQUIRE(p == end(p));
         // C++17 Ref: https://en.cppreference.com/w/cpp/filesystem/directory_iterator
 
