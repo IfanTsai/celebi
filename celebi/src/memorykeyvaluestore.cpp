@@ -2,6 +2,8 @@
 #include "extensions/highwayhash.h"
 
 #include <iostream>
+#include <optional>
+
 
 namespace celebiext {
 

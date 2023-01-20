@@ -39,5 +39,5 @@ jobs:
     - name: build and run
       run: |
           cmake -B ./build
-          cmake --build ./build --config Debug --target all -j
+          cmake --build ./build --config Debug --target all -j$(cat /proc/cpuinfo | grep "processor" | wc -l)
           ./build/celebi-tests/celebi-tests
